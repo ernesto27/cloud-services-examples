@@ -31,7 +31,7 @@ func handler(ctx context.Context, event events.APIGatewayV2HTTPRequest) (events.
 
 	response := events.APIGatewayProxyResponse{
 		StatusCode: 200,
-		Body:       "Hello " + event.RawPath,
+		Body:       "update all " + event.RouteKey,
 	}
 	return response, nil
 }

@@ -12,3 +12,7 @@ docker build -t lambda-gateway:$version .
 docker tag lambda-gateway:$version 383660184915.dkr.ecr.us-west-2.amazonaws.com/lambda-gateway:$version
 
 docker push 383660184915.dkr.ecr.us-west-2.amazonaws.com/lambda-gateway:$version
+
+
+aws lambda update-function-code --region us-west-2  --function-name lambda-go \
+  --image-uri 383660184915.dkr.ecr.us-west-2.amazonaws.com/lambda-gateway:$version
