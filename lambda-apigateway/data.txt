@@ -6,7 +6,7 @@ docker run -d -p 9000:8080 \
 lambda-apigateway ./main
 
 
-docker run -p 9000:8080 \
+docker run --rm -p 9000:8080 \
 --entrypoint /usr/local/bin/aws-lambda-rie \
 lambda-apigateway ./main
 
