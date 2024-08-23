@@ -13,10 +13,11 @@ type Mysql struct {
 }
 
 type User struct {
-	ID       int    `json:"id"`
-	Username string `json:"username"`
-	Email    string `json:"email"`
-	Password string
+	ID                  int    `json:"id"`
+	Username            string `json:"username"`
+	Email               string `json:"email"`
+	PasswordFromPayload string `json:"password"`
+	PasswordHash        string `json:"-"`
 }
 
 func NewMysql(host, user, password, port, database string) (*Mysql, error) {
@@ -56,9 +57,37 @@ func (mysql *Mysql) GetUsers() ([]User, error) {
 }
 
 func (mysql *Mysql) CreateUser(user User) error {
-	_, err := mysql.Db.Exec("INSERT INTO users (username, email, password_hash) VALUES (?, ?)", user.Username, user.Email, user.Password)
+	_, err := mysql.Db.Exec("INSERT INTO users (username, email, password_hash) VALUES (?, ?, ?)", user.Username, user.Email, user.PasswordFromPayload)
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func (mysql *Mysql) GetUserByID(id int) (User, error) {
+	var user User
+	err := mysql.Db.QueryRow("SELECT id, username, email FROM users WHERE id = ?", id).Scan(&user.ID, &user.Username, &user.Email)
+	if err != nil {
+		return User{}, err
+	}
+
+	return user, nil
+}
+
+func (mysql *Mysql) UpdateUser(user User) error {
+	res, err := mysql.Db.Exec("UPDATE users SET username = ?, email = ?, password_hash = ? WHERE id = ?", user.Username, user.Email, user.PasswordFromPayload, user.ID)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
+		return errors.New("no rows were affected")
 	}
 
 	return nil

@@ -6,10 +6,13 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strconv"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 )
+
+const intervalServerError = "Internal server error"
 
 func handler(ctx context.Context, event events.APIGatewayV2HTTPRequest) (events.APIGatewayProxyResponse, error) {
 	printDebug(event)
@@ -17,11 +20,8 @@ func handler(ctx context.Context, event events.APIGatewayV2HTTPRequest) (events.
 	db, err := NewMysql(os.Getenv("DB_HOST"), os.Getenv("DB_USER"), os.Getenv("DB_PASSWORD"), os.Getenv("DB_PORT"), os.Getenv("DB_DATABASE"))
 	if err != nil {
 		fmt.Println(err)
+		return responseEndpoint(http.StatusInternalServerError, intervalServerError, ""), nil
 
-		return events.APIGatewayProxyResponse{
-			StatusCode: http.StatusInternalServerError,
-			Body:       "Interval server error",
-		}, nil
 	}
 
 	var response events.APIGatewayProxyResponse
@@ -31,54 +31,106 @@ func handler(ctx context.Context, event events.APIGatewayV2HTTPRequest) (events.
 		users, err := db.GetUsers()
 		if err != nil {
 			fmt.Println(err)
-			return events.APIGatewayProxyResponse{
-				StatusCode: http.StatusInternalServerError,
-				Body:       "Interval server error",
-			}, nil
+			return responseEndpoint(http.StatusInternalServerError, intervalServerError, ""), nil
+
 		}
 
 		usersJSON, err := json.Marshal(users)
 		if err != nil {
 			fmt.Println(err)
-			return events.APIGatewayProxyResponse{
-				StatusCode: http.StatusInternalServerError,
-				Body:       "Internal server error",
-			}, nil
+			return responseEndpoint(http.StatusInternalServerError, intervalServerError, ""), nil
 		}
 
-		response = responseJSON(string(usersJSON))
+		response = responseEndpoint(http.StatusOK, string(usersJSON), "application/json")
 
 	case "POST /users":
-		response = events.APIGatewayProxyResponse{
-			StatusCode: 200,
-			Body:       "create user in DB",
+		var user User
+		err := json.Unmarshal([]byte(event.Body), &user)
+		if err != nil {
+			fmt.Println(err)
+			return responseEndpoint(http.StatusInternalServerError, intervalServerError, ""), nil
 		}
+
+		if user.Username == "" || user.Email == "" || user.PasswordFromPayload == "" {
+			return responseEndpoint(http.StatusBadRequest, "username, email, and password are required", ""), nil
+		}
+
+		fmt.Println("USER: ", user)
+
+		err = db.CreateUser(user)
+		if err != nil {
+			fmt.Println(err)
+			return responseEndpoint(http.StatusInternalServerError, intervalServerError, ""), nil
+		}
+
+		return responseEndpoint(http.StatusCreated, "User created", ""), nil
 
 	case "GET /users/{id}":
-		response = events.APIGatewayProxyResponse{
-			StatusCode: 200,
-			Body:       "get user by ID from DB",
+		id, err := strconv.Atoi(event.PathParameters["id"])
+		if err != nil {
+			fmt.Println(err)
+			return responseEndpoint(http.StatusBadRequest, "Invalid ID", ""), nil
 		}
+
+		user, err := db.GetUserByID(id)
+		if err != nil {
+			fmt.Println(err)
+			return responseEndpoint(http.StatusInternalServerError, intervalServerError, ""), nil
+		}
+
+		userJSON, err := json.Marshal(user)
+		if err != nil {
+			fmt.Println(err)
+			return responseEndpoint(http.StatusInternalServerError, intervalServerError, ""), nil
+		}
+
+		response = responseEndpoint(http.StatusOK, string(userJSON), "application/json")
 
 	case "PUT /users/{id}":
-		response = events.APIGatewayProxyResponse{
-			StatusCode: 200,
-			Body:       "update user by ID in DB",
+		id, err := strconv.Atoi(event.PathParameters["id"])
+		if err != nil {
+			fmt.Println(err)
+			return responseEndpoint(http.StatusBadRequest, "Invalid ID", ""), nil
 		}
 
+		var user User
+		err = json.Unmarshal([]byte(event.Body), &user)
+		if err != nil {
+			fmt.Println(err)
+			return responseEndpoint(http.StatusInternalServerError, intervalServerError, ""), nil
+		}
+
+		if user.Username == "" || user.Email == "" || user.PasswordFromPayload == "" {
+			return responseEndpoint(http.StatusBadRequest, "username, email, and password are required", ""), nil
+		}
+
+		user.ID = id
+
+		err = db.UpdateUser(user)
+		if err != nil {
+			fmt.Println(err)
+			return responseEndpoint(http.StatusInternalServerError, intervalServerError, ""), nil
+		}
+
+		response = responseEndpoint(http.StatusOK, "User updated", "")
 	}
 
 	return response, nil
 }
 
-func responseJSON(body string) events.APIGatewayProxyResponse {
-	return events.APIGatewayProxyResponse{
-		StatusCode: 200,
-		Body:       body,
-		Headers: map[string]string{
-			"Content-Type": "application/json",
-		},
+func responseEndpoint(statusCode int, message string, contentType string) events.APIGatewayProxyResponse {
+	resp := events.APIGatewayProxyResponse{
+		StatusCode: statusCode,
+		Body:       message,
 	}
+
+	if contentType != "" {
+		resp.Headers = map[string]string{
+			"Content-Type": contentType,
+		}
+	}
+
+	return resp
 }
 
 func printDebug(event events.APIGatewayV2HTTPRequest) {
