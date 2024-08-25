@@ -15,8 +15,6 @@ import (
 const intervalServerError = "Internal server error"
 
 func handler(ctx context.Context, event events.APIGatewayV2HTTPRequest) (events.APIGatewayProxyResponse, error) {
-	printDebug(event)
-
 	db, err := NewMysql(os.Getenv("DB_HOST"), os.Getenv("DB_USER"), os.Getenv("DB_PASSWORD"), os.Getenv("DB_PORT"), os.Getenv("DB_DATABASE"))
 	if err != nil {
 		fmt.Println(err)
@@ -24,6 +22,8 @@ func handler(ctx context.Context, event events.APIGatewayV2HTTPRequest) (events.
 
 	}
 
+	println("DB connection successful")
+	printDebug(event)
 	var response events.APIGatewayProxyResponse
 
 	switch event.RouteKey {
@@ -157,6 +157,15 @@ func printDebug(event events.APIGatewayV2HTTPRequest) {
 	fmt.Println("body", event.Body)
 }
 
+var db *Mysql
+
 func main() {
+	var err error
+	db, err = NewMysql(os.Getenv("DB_HOST"), os.Getenv("DB_USER"), os.Getenv("DB_PASSWORD"), os.Getenv("DB_PORT"), os.Getenv("DB_DATABASE"))
+	if err != nil {
+		fmt.Println(err)
+		panic(err)
+
+	}
 	lambda.Start(handler)
 }
