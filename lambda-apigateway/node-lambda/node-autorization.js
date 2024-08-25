@@ -1,4 +1,5 @@
 export const handler = async(event) => {
+    console.log("Version 0.0.1");
     console.log("event: ", event)
      let response = {
          "isAuthorized": false,
