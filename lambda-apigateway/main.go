@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os"
 	"strconv"
 
 	"github.com/aws/aws-lambda-go/events"
@@ -15,12 +14,6 @@ import (
 const intervalServerError = "Internal server error"
 
 func handler(ctx context.Context, event events.APIGatewayV2HTTPRequest) (events.APIGatewayProxyResponse, error) {
-	db, err := NewMysql(os.Getenv("DB_HOST"), os.Getenv("DB_USER"), os.Getenv("DB_PASSWORD"), os.Getenv("DB_PORT"), os.Getenv("DB_DATABASE"))
-	if err != nil {
-		fmt.Println(err)
-		return responseEndpoint(http.StatusInternalServerError, intervalServerError, ""), nil
-
-	}
 
 	println("DB connection successful")
 	printDebug(event)
@@ -113,6 +106,8 @@ func handler(ctx context.Context, event events.APIGatewayV2HTTPRequest) (events.
 		}
 
 		response = responseEndpoint(http.StatusOK, "User updated", "")
+	default:
+		response = responseEndpoint(http.StatusNotFound, "Not found", "")
 	}
 
 	return response, nil
@@ -161,7 +156,7 @@ var db *Mysql
 
 func main() {
 	var err error
-	db, err = NewMysql(os.Getenv("DB_HOST"), os.Getenv("DB_USER"), os.Getenv("DB_PASSWORD"), os.Getenv("DB_PORT"), os.Getenv("DB_DATABASE"))
+
 	if err != nil {
 		fmt.Println(err)
 		panic(err)

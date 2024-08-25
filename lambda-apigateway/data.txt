@@ -16,3 +16,17 @@ curl -XPOST "http://localhost:9000/2015-03-31/functions/function/invocations" -d
 
 
 aws ecr get-login-password --region us-west-2 | docker login --username AWS --password-stdin 383660184915.dkr.ecr.us-west-2.amazonaws.com
+
+
+Run local lambda endpoints 
+
+samba build 
+
+samba local start-api
+
+
+
+
+
+
+
